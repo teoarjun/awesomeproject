@@ -17,7 +17,7 @@ on:
 jobs:
   linting-job:
     name: Linting Checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest    
     steps:
       - run: env
 
@@ -26,13 +26,9 @@ jobs:
 
       - name: Setup Node
         uses: actions/setup-node@v3
-        with:
-          node-version: "12.x"
 
       - name: Setup Ruby
         uses: actions/setup-ruby@v1
-        with:
-          ruby-version: "2.x"
 
       - name: Cache Node packages
         id: ubuntu-node-cache
@@ -53,3 +49,98 @@ jobs:
       - name: Run Lint Checks
         run: yarn lint
         working-directory: src
+
+  unit-test-job:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest    
+    steps:
+      - run: env
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+
+      - name: Setup Ruby
+        uses: actions/setup-ruby@v1
+
+      - name: Cache Node packages
+        id: ubuntu-node-cache
+        uses: actions/cache@v3
+        with:
+          path: src/node_modules
+          key: ${{ runner.os }}-ubuntu-node-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Install Node packages
+        if: steps.ubuntu-node-cache.outputs.cache-hit != 'true'
+        uses: nick-invision/retry@v2
+        with:
+          timeout_minutes: 10
+          retry_wait_seconds: 60
+          max_attempts: 3
+          command: pushd src && yarn install --frozen-lockfile
+
+      - name: Run Test Suite
+        run: yarn test:cov
+        working-directory: src
+
+      - name: Archive coverage report results
+        uses: actions/upload-artifact@v2
+        with:
+          name: coverage-report
+          path: src/coverage/lcov.info
+
+      - name: Archive tests report results
+        uses: actions/upload-artifact@v2
+        with:
+          name: tests-report
+          path: src/test-report.xml
+
+  static-analysis-job:
+    name: Perform Static Analysis
+    needs: unit-test-job
+    runs-on: ubuntu-latest
+    steps:
+      - run: env
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          
+      - name: Download coverage report result
+        uses: actions/download-artifact@v2
+        with:
+          name: coverage-report
+          path: src/coverage/
+
+      - name: Download tests report result
+        uses: actions/download-artifact@v2
+        with:
+          name: tests-report
+          path: src/
+
+      - name: Fix test report paths
+        working-directory: src/
+        run: |
+          sed -i 's@'$GITHUB_WORKSPACE'@/github/workspace/@g' test-report.xml
+
+  cleanup-job:
+    name: Cleanup
+    if: always()
+    needs: 
+      - linting-job
+      - unit-test-job
+      - static-analysis-job
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete coverage report result
+        uses: geekyeggo/delete-artifact@v1
+        with:
+          name: coverage-report
+
+      - name: Delete tests report result
+        uses: geekyeggo/delete-artifact@v1
+        with:
+          name: tests-report
