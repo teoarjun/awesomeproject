@@ -1,0 +1,44 @@
+name: Continuous Integration(CI)
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - alpha 
+      - main
+
+
+jobs:
+  linting-job:
+    name: Linting Checks
+    runs-on: ubuntu-latest    
+    steps:
+      - run: env
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: "12.x"
+
+      - name: Setup Ruby
+        uses: actions/setup-ruby@v1
+        with:
+          ruby-version: "2.x"
+
+      - name: setup node
+      - uses: actions/setup-node@master
+      - name: setup node cache
+      - uses: c-hive/gha-yarn-cache@v1
+
+      - name: Install node modules
+        run: yarn install
+
+      - name: Run test
+        run: yarn test-ci
+
+      - name: Run Lint Checks
+        run: yarn lint
+        working-directory: src      
