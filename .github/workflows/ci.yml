@@ -89,7 +89,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: coverage-report
-          path: src/coverage/lcov.info
+          path: coverage/lcov.info
 
       - name: Archive tests report results
         uses: actions/upload-artifact@v2
@@ -113,7 +113,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: coverage-report
-          path: src/coverage/
+          path: coverage/
 
       - name: Download tests report result
         uses: actions/download-artifact@v2
